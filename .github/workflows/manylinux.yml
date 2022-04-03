@@ -31,20 +31,64 @@ on:
       - '!.github/workflows/manylinux.yml'
 
 jobs:
-  build-manylinux:
+  build:
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false  # if a particular matrix build fails, don't skip the rest
       matrix:
-        arch: ['x64', 'x86', 'aarch64']
-        tag: ['manylinux1', 'manylinux2010', 'manylinux2014']
+        # Split job into many matrix builds, because GH actions provides 20
+        # concurrent builds on ubuntu
+        include:
+          # no pypy on manylinux1
+          - { image: manylinux1, arch: x86_64, pyversions: cp*- }
+          - { image: manylinux1, arch: i686, pyversions: cp*- }
+          - { image: manylinux2010, arch: x86_64, pyversions: cp*- pp*- }
+          - { image: manylinux2010, arch: i686, pyversions: cp*- pp*- }
+          - { image: manylinux2014, arch: x86_64, pyversions: cp*- pp*- }
+          - { image: manylinux2014, arch: i686, pyversions: cp*- pp*- }
+          # separate aarch64 cpython and pypy builds because each takes a lot
+          # of time
+          - { image: manylinux2010, arch: aarch64, pyversions: cp*- }
+          - { image: manylinux2010, arch: aarch64, pyversions: pp*- }
+          - { image: manylinux2014, arch: aarch64, pyversions: cp*- }
+          - { image: manylinux2014, arch: aarch64, pyversions: pp*- }
+    
+    env:
+      # load pip config from this file
+      PIP_CONFIG_FILE: buildconfig/pip_config.ini
 
-        exclude:
-          # aarch64 only with manylinux2014 for now
-          - arch: 'aarch64'
-            tag: 'manylinux1'
-          - arch: 'aarch64'
-            tag: 'manylinux2010'
+      # environment variables needed for testing
+      SDL_VIDEODRIVER: "dummy"
+      SDL_AUDIODRIVER: "disk"
+      PORTMIDI_INC_PORTTIME: 1
+
+      CIBW_BUILD: ${{ matrix.pyversions }}
+      CIBW_ARCHS: ${{ matrix.arch }}
+
+      # skip musllinux for now
+      CIBW_SKIP: '*-musllinux_*'
+
+      # these environment variables will be passed to the docker container
+      CIBW_ENVIRONMENT_PASS_LINUX: |
+        SDL_VIDEODRIVER SDL_AUDIODRIVER PORTMIDI_INC_PORTTIME PIP_CONFIG_FILE
+
+      # set custom pygame images
+      CIBW_MANYLINUX_X86_64_IMAGE: pygame/${{ matrix.image }}_base_x86_64
+      CIBW_MANYLINUX_I686_IMAGE: pygame/${{ matrix.image }}_base_i686
+      CIBW_MANYLINUX_AARCH64_IMAGE: pygame/${{ matrix.image }}_base_aarch64
+      CIBW_MANYLINUX_PYPY_X86_64_IMAGE: pygame/${{ matrix.image }}_base_x86_64
+      CIBW_MANYLINUX_PYPY_I686_IMAGE: pygame/${{ matrix.image }}_base_i686
+      CIBW_MANYLINUX_PYPY_AARCH64_IMAGE: pygame/${{ matrix.image }}_base_aarch64
+
+      # command that runs before every build
+      CIBW_BEFORE_BUILD: |
+        pip install Sphinx
+        python setup.py docs
+
+      CIBW_TEST_COMMAND: python -m pygame.tests -v --exclude opengl,music,timing --time_out 300
+
+      # Increase pip debugging output
+      CIBW_BUILD_VERBOSITY: 2
 
     steps:
     - uses: actions/checkout@v2.3.4
@@ -54,28 +98,25 @@ jobs:
       if: ${{ matrix.arch == 'aarch64' }}
       id: qemu
       uses: docker/setup-qemu-action@v1
-      
-    - name: Build manylinux wheels
-      run: |
-        cd buildconfig/manylinux-build
-        make pull-${{ matrix.tag }}-${{ matrix.arch }} wheels-${{ matrix.tag }}-${{ matrix.arch }}
-        cd ../..
-        mkdir -p dist/
-        cp buildconfig/manylinux-build/wheelhouse/*.whl dist/
+      with:
+        platforms: arm64
+
+    - name: Build and test wheels
+      uses: pypa/cibuildwheel@v2.4.0
 
     # We upload the generated files under github actions assets
     - name: Upload dist
       uses: actions/upload-artifact@v2
       with:
         name: pygame-manylinux-wheels
-        path: dist/*.whl
+        path: ./wheelhouse/*.whl
 
 #   - name: Upload binaries to Github Releases
 #     if: github.event_name == 'release'
 #     uses: svenstaro/upload-release-action@v2
 #     with:
 #       repo_token: ${{ secrets.GITHUB_TOKEN }}
-#       file: dist/*.whl
+#       file: ./wheelhouse/*.whl
 #       tag: ${{ github.ref }}
 #
 #   - name: Upload binaries to PyPI
@@ -85,4 +126,4 @@ jobs:
 #      TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 #     run: |
 #       python3 -m pip install twine
-#       twine upload dist/*.whl
+#       twine upload ./wheelhouse/*.whl
