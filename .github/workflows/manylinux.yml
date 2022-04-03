@@ -48,11 +48,9 @@ jobs:
           - { image: manylinux2014, arch: i686, pyversions: cp* pp* }
           # separate aarch64 cpython and pypy builds because each takes a lot
           # of time
-          - { image: manylinux2010, arch: aarch64, pyversions: cp* }
-          - { image: manylinux2010, arch: aarch64, pyversions: pp* }
           - { image: manylinux2014, arch: aarch64, pyversions: cp* }
           - { image: manylinux2014, arch: aarch64, pyversions: pp* }
-    
+
     env:
       # environment variables needed for testing
       SDL_VIDEODRIVER: "dummy"
