@@ -54,9 +54,6 @@ jobs:
           - { image: manylinux2014, arch: aarch64, pyversions: pp*- }
     
     env:
-      # load pip config from this file
-      PIP_CONFIG_FILE: buildconfig/pip_config.ini
-
       # environment variables needed for testing
       SDL_VIDEODRIVER: "dummy"
       SDL_AUDIODRIVER: "disk"
@@ -67,6 +64,10 @@ jobs:
 
       # skip musllinux for now
       CIBW_SKIP: '*-musllinux_*'
+
+      # load pip config from this file. Define this in 'CIBW_ENVIRONMENT'
+      # because this should not affect cibuildwheel machinery
+      CIBW_ENVIRONMENT: PIP_CONFIG_FILE=buildconfig/pip_config.ini
 
       # these environment variables will be passed to the docker container
       CIBW_ENVIRONMENT_PASS_LINUX: |

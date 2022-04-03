@@ -131,9 +131,6 @@ jobs:
         #     pyver: 'pp27'
 
     env:
-      # load pip config from this file
-      PIP_CONFIG_FILE: buildconfig/pip_config.ini
-
       # environment variables needed for testing
       SDL_VIDEODRIVER: "dummy"
       SDL_AUDIODRIVER: "disk"
@@ -143,6 +140,10 @@ jobs:
       # Build arm64 and x86_64 wheels too on an Intel runner.
       # Note that the arm64 wheels cannot be tested on CI in this configuration
       CIBW_ARCHS_MACOS: ${{ matrix.macarch }}
+
+      # load pip config from this file. Define this in 'CIBW_ENVIRONMENT'
+      # because this should not affect cibuildwheel machinery
+      CIBW_ENVIRONMENT: PIP_CONFIG_FILE=buildconfig/pip_config.ini
 
       # Setup MacOS dependencies
       CIBW_BEFORE_ALL_MACOS: |
