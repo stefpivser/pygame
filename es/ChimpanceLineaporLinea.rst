@@ -3,7 +3,7 @@
 .. include:: common.txt
 
 *************************************************************
-  Tutorial de Pygame - Ejemplo del Chimpancé, Línea Por Línea
+  Tutorial de Pygame - Ejemplares del Chimpancé, Línea Por Línea
 *************************************************************
 
 
